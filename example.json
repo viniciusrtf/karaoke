@@ -1,0 +1,50 @@
+{
+  "segments": [
+    {
+      "start": 0.1,
+      "end": 1.1,
+      "text": "Hello",
+      "words": [
+        {
+          "word": "Hello",
+          "start": 0.1,
+          "end": 1.1,
+          "score": 0.99,
+          "speaker": "SPEAKER_00"
+        }
+      ],
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "start": 1.5,
+      "end": 2.5,
+      "text": "world!",
+      "words": [
+        {
+          "word": "world!",
+          "start": 1.5,
+          "end": 2.5,
+          "score": 0.98,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "speaker": "SPEAKER_01"
+    }
+  ],
+  "word_segments": [
+    {
+      "word": "Hello",
+      "start": 0.1,
+      "end": 1.1,
+      "score": 0.99,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "world!",
+      "start": 1.5,
+      "end": 2.5,
+      "score": 0.98,
+      "speaker": "SPEAKER_01"
+    }
+  ]
+}

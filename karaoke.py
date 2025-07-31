@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-karaoke_numeric_all.py
+karaoke.py
 Generate a CPU+GPU-accelerated karaoke-style highlight video from:
 - an input video
 - WhisperX JSON word timings

@@ -88,7 +88,7 @@ def main():
                             .replace("'", "’") \
                             .replace(',', '\\,') \
                             .replace(':', '\\:') \
-                            .replace('%', 'percent')
+                            .replace('%', ' percent')
             lw, lh = font.getsize(raw_line)
             st, et = chunk[0]['start'], chunk[-1]['end']
             px = 0
@@ -125,7 +125,7 @@ def main():
         "[a1][a2]amix=inputs=2:duration=longest[aout]"
     )
     Path(args.filter_graph).write_text(vid_chain + ";" + aud_chain, encoding='utf-8')
-    print(f"Wrote {args.filter_graph}")
+    # print(f"Wrote {args.filter_graph}")
 
     cmd = (
         f"ffmpeg -threads {threads} -filter_complex_threads {threads} "

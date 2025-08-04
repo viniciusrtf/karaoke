@@ -35,11 +35,13 @@ def parse_args():
     p.add_argument("--filter-graph",   default="filter_graph.txt", help="Output filter_graph.txt path")
     p.add_argument("--font-path",      default="/usr/share/fonts/opentype/urw-base35/NimbusMonoPS-Bold.otf", help="Path to TTF font file")
     p.add_argument("--font-size",      type=int, default=60,   help="Font size in px")
-    p.add_argument("--margin",         type=int, default=400,  help="Bottom margin in px")
+    p.add_argument("--margin",         type=int, default=None,  help="Bottom margin in px")
+    p.add_argument("--margin-percent", type=float, default=30, help="Bottom margin in percent of video height")
     p.add_argument("--max-words",      type=int, default=5,    help="Max words per subtitle chunk")
     p.add_argument("--pad",            type=int, default=10,   help="Padding around each highlight box in px")
     p.add_argument("--box-color",      default="0x00A5FF",    help="Highlight box color (hex) e.g. 0x00A5FF")
     p.add_argument("--font-color",     default="white",      help="Font color for text overlay")
+    p.add_argument("--overwrite",      action="store_true",  help="Overwrite output file if it exists")
     return p.parse_args()
 
 
@@ -73,9 +75,13 @@ def main():
     threads = multiprocessing.cpu_count()
 
     W, H = get_video_resolution(args.input_video)
+    if args.margin is not None:
+        margin_px = args.margin
+    else:
+        margin_px = H * (args.margin_percent / 100)
     data = json.loads(Path(args.json_file).read_text(encoding='utf-8'))
     font = ImageFont.truetype(args.font_path, args.font_size)
-    y_base = H - args.margin
+    y_base = H - margin_px
 
     filters = []
     for seg in data.get('segments', []):
@@ -127,8 +133,9 @@ def main():
     Path(args.filter_graph).write_text(vid_chain + ";" + aud_chain, encoding='utf-8')
     # print(f"Wrote {args.filter_graph}")
 
+    overwrite_flag = "-y " if args.overwrite else ""
     cmd = (
-        f"ffmpeg -threads {threads} -filter_complex_threads {threads} "
+        f"ffmpeg {overwrite_flag}-threads {threads} -filter_complex_threads {threads} "
         f"-i {args.input_video} -i {args.acc_wav} -i {args.voc_wav} "
         f"-filter_complex_script {args.filter_graph} "
         f"-map [v] -map [aout] "

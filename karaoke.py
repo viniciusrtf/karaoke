@@ -95,47 +95,60 @@ def main():
     max_pixel_width = W * (args.max_width / 100)
     y_base = H - margin_px
 
-    filters = []
+    # First, collect all chunks from all segments
+    all_chunks = []
     for seg in data.get('segments', []):
         words = seg.get('words', [])
         if not words:
             continue
-        for chunk in chunk_words(words, args.max_words, max_pixel_width, font):
-            raw_line = ' '.join(w['word'] for w in chunk)
-            safe = raw_line.replace('\\', '\\\\') \
-                            .replace("'", "’") \
-                            .replace(',', '\\,') \
-                            .replace(':', '\\:') \
-                            .replace('%', ' percent')
+        all_chunks.extend(chunk_words(words, args.max_words, max_pixel_width, font))
 
-            lw, lh = font.getsize(raw_line)
-            st, et = chunk[0]['start'], chunk[-1]['end']
-            px = 0
-            for i, wd in enumerate(chunk):
-                s_t = wd['start']
-                e_t = chunk[i+1]['start'] if i+1 < len(chunk) else wd['end']
-                wtxt = wd['word']
-                wpx, _ = font.getsize(wtxt)
-                x0 = (W - lw)/2 + px - args.pad
-                y0 = y_base - args.pad
-                wbox, hbox = wpx + args.pad*2, lh + args.pad*2
-                filters.append(
-                    f"drawbox=x={x0:.1f}:y={y0:.1f}:w={wbox:.1f}:h={hbox:.1f}:"
-                    f"color={args.box_color}:t=fill:"
-                    f"enable='between(t,{s_t:.3f},{e_t:.3f})'"
-                )
-                adv, _ = font.getsize(wtxt + ' ')
-                px += adv
-            # text with border and shadow
+    filters = []
+    for i, chunk in enumerate(all_chunks):
+        raw_line = ' '.join(w['word'] for w in chunk)
+        safe = raw_line.replace('\\', '\\\\') \
+                        .replace("'", "’") \
+                        .replace(',', '\\,') \
+                        .replace(':', '\\:') \
+                        .replace('%', ' percent')
+
+        lw, lh = font.getsize(raw_line)
+        st, et = chunk[0]['start'], chunk[-1]['end']
+
+        # Check if the next chunk is close
+        if i + 1 < len(all_chunks):
+            next_chunk = all_chunks[i+1]
+            next_st = next_chunk[0]['start']
+            if next_st - et < 1.0:
+                et = next_st  # Extend the display time of the current chunk
+
+        px = 0
+        for i_word, wd in enumerate(chunk):
+            s_t = wd['start']
+            # The end time for the word highlight is the start of the next word, or the original end of the chunk
+            e_t = chunk[i_word+1]['start'] if i_word+1 < len(chunk) else chunk[-1]['end']
+            wtxt = wd['word']
+            wpx, _ = font.getsize(wtxt)
+            x0 = (W - lw)/2 + px - args.pad
+            y0 = y_base - args.pad
+            wbox, hbox = wpx + args.pad*2, lh + args.pad*2
             filters.append(
-                f"drawtext=fontfile='{args.font_path}':"
-                f"text='{safe}':"
-                f"fontcolor={args.font_color}:fontsize={args.font_size}:"
-                f"borderw=2:bordercolor=black:"
-                f"shadowcolor=black:shadowx=2:shadowy=2:"
-                f"x=(w-{lw})/2:y={y_base}:"
-                f"enable='between(t,{st:.3f},{et:.3f})'"
+                f"drawbox=x={x0:.1f}:y={y0:.1f}:w={wbox:.1f}:h={hbox:.1f}:"
+                f"color={args.box_color}:t=fill:"
+                f"enable='between(t,{s_t:.3f},{e_t:.3f})'"
             )
+            adv, _ = font.getsize(wtxt + ' ')
+            px += adv
+        # text with border and shadow
+        filters.append(
+            f"drawtext=fontfile='{args.font_path}':"
+            f"text='{safe}':"
+            f"fontcolor={args.font_color}:fontsize={args.font_size}:"
+            f"borderw=2:bordercolor=black:"
+            f"shadowcolor=black:shadowx=2:shadowy=2:"
+            f"x=(w-{lw})/2:y={y_base}:"
+            f"enable='between(t,{st:.3f},{et:.3f})'"
+        )
 
     vid_chain = f"[0:v]scale={W}:{H},format=yuv420p,{','.join(filters)}[v]"
     aud_chain = (

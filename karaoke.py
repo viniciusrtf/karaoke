@@ -38,6 +38,7 @@ def parse_args():
     p.add_argument("--margin",         type=int, default=None,  help="Bottom margin in px")
     p.add_argument("--margin-percent", type=float, default=30, help="Bottom margin in percent of video height")
     p.add_argument("--max-words",      type=int, default=5,    help="Max words per subtitle chunk")
+    p.add_argument("--max-width",      type=int, default=90,   help="Max width of a subtitle chunk in percent of video width")
     p.add_argument("--pad",            type=int, default=10,   help="Padding around each highlight box in px")
     p.add_argument("--box-color",      default="0x00A5FF",    help="Highlight box color (hex) e.g. 0x00A5FF")
     p.add_argument("--font-color",     default="white",      help="Font color for text overlay")
@@ -57,12 +58,22 @@ def get_video_resolution(path: str) -> tuple[int,int]:
     return int(info["streams"][0]["width"]), int(info["streams"][0]["height"])
 
 
-def chunk_words(words: list[dict], max_len: int) -> list[list[dict]]:
+def chunk_words(words: list[dict], max_len: int, max_px_width: int, font: ImageFont.FreeTypeFont) -> list[list[dict]]:
     chunks, curr = [], []
     for wd in words:
+        # Add the new word and check the size
         curr.append(wd)
-        txt = wd['word']
-        if txt.endswith(('.', '?', '!')) or len(curr) >= max_len:
+        line_text = ' '.join(w['word'] for w in curr)
+        line_width, _ = font.getsize(line_text)
+
+        # Check if the line is too long (and it's not a single long word)
+        if line_width > max_px_width and len(curr) > 1:
+            # The previous chunk was the one that fit
+            chunks.append(curr[:-1])
+            # Start a new chunk with the current word
+            curr = [wd]
+        # Check for punctuation or max words reached
+        elif wd['word'].endswith(('.', '?', '!')) or len(curr) >= max_len:
             chunks.append(curr)
             curr = []
     if curr:
@@ -81,6 +92,7 @@ def main():
         margin_px = H * (args.margin_percent / 100)
     data = json.loads(Path(args.json_file).read_text(encoding='utf-8'))
     font = ImageFont.truetype(args.font_path, args.font_size)
+    max_pixel_width = W * (args.max_width / 100)
     y_base = H - margin_px
 
     filters = []
@@ -88,13 +100,14 @@ def main():
         words = seg.get('words', [])
         if not words:
             continue
-        for chunk in chunk_words(words, args.max_words):
+        for chunk in chunk_words(words, args.max_words, max_pixel_width, font):
             raw_line = ' '.join(w['word'] for w in chunk)
             safe = raw_line.replace('\\', '\\\\') \
                             .replace("'", "’") \
                             .replace(',', '\\,') \
                             .replace(':', '\\:') \
                             .replace('%', ' percent')
+
             lw, lh = font.getsize(raw_line)
             st, et = chunk[0]['start'], chunk[-1]['end']
             px = 0
